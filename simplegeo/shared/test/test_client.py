@@ -113,8 +113,24 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(mockhttp.method_calls[0][0], 'request')
         self.assertEqual(mockhttp.method_calls[0][1][0], 'http://api.simplegeo.com:80/%s/features/%s.json' % (API_VERSION, "SG_4bgzicKFmP89tQFGLGZYy0_34.714646_-86.584970"))
         self.assertEqual(mockhttp.method_calls[0][1][1], 'GET')
-        # the code under test is required to have json-decoded this before handing it back
+        # the code under test is required to have json-decoded this
+        # and instantiated a Feature object before handing it back
         self.failUnless(isinstance(res, Feature), (repr(res), type(res)))
+
+    @mock.patch('oauth2.Request.make_timestamp')
+    @mock.patch('oauth2.Request.make_nonce')
+    def test_oauth(self, mock_make_nonce, mock_make_timestamp):
+        mock_make_nonce.return_value = 5
+        mock_make_timestamp.return_value = 6
+
+        mockhttp = mock.Mock()
+        mockhttp.request.return_value = ({'status': '200', 'content-type': 'application/json', 'thingie': "just to see if you're listening"}, EXAMPLE_POINT_BODY)
+        self.client.http = mockhttp
+
+        self.client.get_feature("SG_4bgzicKFmP89tQFGLGZYy0_34.714646_-86.584970")
+
+        self.assertEqual(mockhttp.method_calls[0][2]['body'], None)
+        self.assertEqual(mockhttp.method_calls[0][2]['headers']['Authorization'], 'OAuth realm="http://api.simplegeo.com", oauth_nonce="5", oauth_timestamp="6", oauth_consumer_key="MY_OAUTH_KEY", oauth_signature_method="HMAC-SHA1", oauth_version="1.0", oauth_signature="GEfLkAQfaHqe3hAgGu8uPqbX3Uk%3D"')
 
     def test_get_polygon_feature(self):
         mockhttp = mock.Mock()
